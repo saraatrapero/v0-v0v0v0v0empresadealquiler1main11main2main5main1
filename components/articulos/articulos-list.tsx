@@ -9,21 +9,10 @@ import { MoreHorizontal, Edit, Trash2, Copy, Eye } from "lucide-react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { getArticulos, deleteArticulo } from "@/app/actions/articulos-actions"
+import type { Articulo as ArticuloType } from "@/lib/types"
 
 interface ArticulosListProps {
   searchQuery?: string
-}
-
-interface Articulo {
-  id: string
-  nombre: string
-  codigo: string
-  categoria: string
-  descripcion?: string
-  imagenes?: string[]
-  precio_dia: number
-  stock_disponible: number
-  stock_total: number
 }
 
 interface ArticuloAccionesProps {
@@ -166,7 +155,7 @@ export function ArticulosList({ searchQuery = "" }: ArticulosListProps) {
   )
 }
 
-function ArticuloGridItem({ articulo, onEliminar, onDuplicar }: { articulo: Articulo; onEliminar: (id: string) => void; onDuplicar: (articulo: Articulo) => void }) {
+function ArticuloGridItem({ articulo, onEliminar, onDuplicar }: { articulo: ArticuloType; onEliminar: (id: string) => void; onDuplicar: (articulo: ArticuloType) => void }) {
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
       <div className="aspect-square relative">
@@ -209,7 +198,7 @@ function ArticuloGridItem({ articulo, onEliminar, onDuplicar }: { articulo: Arti
   )
 }
 
-function ArticuloListItem({ articulo, onEliminar, onDuplicar }: { articulo: Articulo; onEliminar: (id: string) => void; onDuplicar: (articulo: Articulo) => void }) {
+function ArticuloListItem({ articulo, onEliminar, onDuplicar }: { articulo: ArticuloType; onEliminar: (id: string) => void; onDuplicar: (articulo: ArticuloType) => void }) {
   return (
     <Card>
       <CardContent className="p-4">

@@ -3,6 +3,7 @@
 import { createServerClient, shouldUseSupabase } from "@/lib/supabase/server"
 import { mockStore } from "@/lib/mock-data-store"
 import { revalidatePath } from "next/cache"
+import { PedidoSchema, validateOrThrow } from "@/lib/validations/schemas"
 
 export async function getPedidos(filters?: {
   estado?: string
@@ -108,6 +109,41 @@ export async function createPedido(formData: {
   articulos?: Array<{ articulo_id: string; cantidad: number; precio_unitario: number; nombre?: string }>
   total?: number
 }) {
+  // Validación y sanitización básica
+  if (!formData || !formData.cliente_id?.trim()) {
+    return { success: false, error: "El cliente es requerido" }
+  }
+
+  if (!formData.fecha_entrega || !formData.fecha_devolucion) {
+    return { success: false, error: "Fechas de entrega y devolución son obligatorias" }
+  }
+
+  if (!formData.articulos || formData.articulos.length === 0) {
+    return { success: false, error: "Debe especificar al menos un artículo en el pedido" }
+  }
+
+  // Sanitizar articulos y calcular total si no viene
+  formData.articulos = formData.articulos.map((a) => ({
+    articulo_id: a.articulo_id,
+    cantidad: Number(a.cantidad) || 0,
+    precio_unitario: Number(a.precio_unitario) || 0,
+    nombre: a.nombre?.trim(),
+  }))
+
+  const calculadoTotal = formData.articulos.reduce((s, a) => s + a.cantidad * a.precio_unitario, 0)
+  formData.total = Number(formData.total) || calculadoTotal
+
+  // Validar estructura del pedido con Zod (mapeamos precio_unitario -> precio)
+  try {
+    const toValidate = {
+      cliente_id: formData.cliente_id,
+      articulos: formData.articulos.map((a) => ({ articulo_id: a.articulo_id, cantidad: a.cantidad, precio: a.precio_unitario })),
+    }
+    validateOrThrow(PedidoSchema, toValidate)
+  } catch (validationError: any) {
+    return { success: false, error: validationError.message || "Datos inválidos", details: validationError.details }
+  }
+
   if (!shouldUseSupabase()) {
     console.log("[v0] Usando datos mock para crear pedido")
     const cliente = mockStore.getClientes().find((c) => c.id === formData.cliente_id)
@@ -159,9 +195,14 @@ export async function createPedido(formData: {
 
     const numeroPedido = `PED-${new Date().getFullYear()}-${String((count || 0) + 1).padStart(4, "0")}`
 
+    const toInsert = {
+      ...formData,
+      numero_pedido: numeroPedido,
+    }
+
     const { data, error } = await supabase
       .from("pedidos")
-      .insert([{ ...formData, numero_pedido: numeroPedido }])
+      .insert([toInsert])
       .select()
       .single()
 

@@ -1,6 +1,29 @@
 import { shouldUseSupabase, createServerClient } from "./supabase/server"
 import { mockDataStore } from "./mock-data-store"
 
+// Tipos mínimos para autocompletado y validación ligera.
+export interface Articulo {
+  id?: string
+  nombre: string
+  descripcion?: string
+  precio?: number
+  created_at?: string
+}
+
+export interface Pedido {
+  id?: string
+  cliente_id: string
+  articulos: Array<{ articulo_id: string; cantidad: number; precio?: number }>
+  fecha_pedido?: string
+}
+
+export interface Usuario {
+  id?: string
+  nombre: string
+  email: string
+  created_at?: string
+}
+
 export const articulosDB = {
   async getAll() {
     if (shouldUseSupabase()) {
@@ -15,7 +38,7 @@ export const articulosDB = {
       return mockDataStore.getArticulos()
     }
   },
-  async create(articulo: any) {
+  async create(articulo: Articulo) {
     if (shouldUseSupabase()) {
       const supabase = createServerClient()
       if (!supabase) return mockDataStore.addArticulo(articulo)
@@ -44,7 +67,7 @@ export const pedidosDB = {
       return mockDataStore.getPedidos()
     }
   },
-  async create(pedido: any) {
+  async create(pedido: Pedido) {
     if (shouldUseSupabase()) {
       const supabase = createServerClient()
       if (!supabase) return mockDataStore.addPedido(pedido)
@@ -73,7 +96,7 @@ export const usuariosDB = {
       return mockDataStore.getClientes()
     }
   },
-  async create(usuario: any) {
+  async create(usuario: Usuario) {
     if (shouldUseSupabase()) {
       const supabase = createServerClient()
       if (!supabase) return mockDataStore.addCliente(usuario)

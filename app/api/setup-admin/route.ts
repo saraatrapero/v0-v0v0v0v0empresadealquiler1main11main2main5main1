@@ -3,6 +3,11 @@ import { NextResponse } from "next/server"
 
 export async function GET() {
   try {
+    // Safety: only allow automated setup in non-production or when explicitly enabled
+    const allowSetup = process.env.ALLOW_SETUP === "true"
+    if (process.env.NODE_ENV === "production" && !allowSetup) {
+      return NextResponse.json({ success: false, error: "Setup deshabilitado en producción" }, { status: 403 })
+    }
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 

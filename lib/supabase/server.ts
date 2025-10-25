@@ -1,6 +1,11 @@
 import { createServerClient as createSupabaseServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 
+/**
+ * Helpers for creating Supabase clients on the server.
+ * This file normalizes several environment variable aliases used across setups.
+ */
+
 export function shouldUseSupabase(): boolean {
   return process.env.NEXT_PUBLIC_USE_SUPABASE_TABLES === "true"
 }
@@ -10,21 +15,29 @@ export function isTableNotFoundError(error: any): boolean {
 }
 
 export function markTablesAsNonExistent(): void {
-  // This is a no-op function for compatibility
-  // In a real implementation, you might want to cache this information
+  // no-op for now; could cache missing-table state
 }
 
+/**
+ * Create a Supabase server-side client if env is configured.
+ * Returns the client or null when the environment is not set up.
+ */
 export function createServerClient() {
-  if (!shouldUseSupabase()) {
-    return null
-  }
+  if (!shouldUseSupabase()) return null
 
-  const supabaseUrl = process.env.SUPABASE_SUPABASE_NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+  // Support multiple env var naming conventions used in different deployments
+  const supabaseUrl =
+    process.env.SUPABASE_SUPABASE_NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    process.env.SUPABASE_URL
 
-  const supabaseAnonKey = process.env.SUPABASE_NEXT_PUBLIC_SUPABASE_ANON_KEY_ANON_KEY || process.env.SUPABASE_ANON_KEY
+  const supabaseAnonKey =
+    process.env.SUPABASE_NEXT_PUBLIC_SUPABASE_ANON_KEY_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn("[v0] Supabase environment variables not configured")
+    console.warn("[v0] Supabase environment variables not configured: skipping Supabase client creation")
     return null
   }
 
@@ -39,20 +52,21 @@ export function createServerClient() {
           const cookieStore = await cookies()
           cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
         } catch {
-          // The "setAll" method was called from a Server Component.
-          // This can be ignored if you have middleware refreshing
-          // user sessions.
+          // setAll may be called from places where cookies cannot be set (Server Components)
         }
       },
     },
   })
 }
 
+/**
+ * Create a client intended for server actions where cookies are available.
+ * Throws when required env vars are missing to make failures explicit.
+ */
 export async function createClient() {
   const cookieStore = await cookies()
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
-
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -68,9 +82,7 @@ export async function createClient() {
         try {
           cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
         } catch {
-          // The "setAll" method was called from a Server Component.
-          // This can be ignored if you have middleware refreshing
-          // user sessions.
+          // ignore when called in contexts without writable cookies
         }
       },
     },

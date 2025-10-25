@@ -281,6 +281,28 @@ class MockDataStore {
     return newCliente
   }
 
+  getCliente(id: string) {
+    return this.clientes.find((c) => c.id === id) || null
+  }
+
+  updateCliente(id: string, data: Partial<Cliente>) {
+    const index = this.clientes.findIndex((c) => c.id === id)
+    if (index !== -1) {
+      this.clientes[index] = { ...this.clientes[index], ...data }
+      return this.clientes[index]
+    }
+    return null
+  }
+
+  deleteCliente(id: string) {
+    const index = this.clientes.findIndex((c) => c.id === id)
+    if (index !== -1) {
+      this.clientes.splice(index, 1)
+      return true
+    }
+    return false
+  }
+
   // Métodos para reservas
   getReservas() {
     return [...this.reservas]

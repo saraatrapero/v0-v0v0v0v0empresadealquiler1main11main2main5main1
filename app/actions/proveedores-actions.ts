@@ -1,6 +1,7 @@
 "use server"
 
 import { createServerClient, shouldUseSupabase } from "@/lib/supabase/server"
+import { ProveedorSchema, validateOrThrow } from "@/lib/validations/schemas"
 import { revalidatePath } from "next/cache"
 
 export interface Proveedor {
@@ -15,7 +16,23 @@ export interface Proveedor {
   activo: boolean
 }
 
-export async function getProveedores(search?: string) {
+export interface ProveedorCreateData {
+  nombre: string
+  contacto?: string
+  telefono?: string
+  email?: string
+  direccion?: string
+  cif?: string
+  notas?: string
+}
+
+export interface ProveedoresResponse {
+  success: boolean
+  data?: Proveedor[]
+  error?: string
+}
+
+export async function getProveedores(search?: string): Promise<ProveedoresResponse> {
   if (!shouldUseSupabase()) {
     // Mock data
     const mockProveedores: Proveedor[] = [
@@ -72,21 +89,28 @@ export async function getProveedores(search?: string) {
     return { success: true, data: data || [] }
   } catch (error) {
     console.error("[v0] Error obteniendo proveedores:", error)
-    return { success: false, error: "Error al obtener proveedores", data: [] }
+    return { success: false, error: "Error al obtener proveedores" }
   }
 }
+export async function createProveedor(formData: ProveedorCreateData): Promise<{ success: boolean; data?: Proveedor; error?: string }> {
+  // Sanitizar
+  const nombre = formData.nombre?.trim()
+  const contacto = formData.contacto?.trim() || null
+  const telefono = formData.telefono?.trim() || null
+  const email = formData.email?.trim().toLowerCase() || null
+  const direccion = formData.direccion?.trim() || null
+  const cif = formData.cif?.trim().toUpperCase() || null
+  const notas = formData.notas?.trim() || null
 
-export async function createProveedor(formData: {
-  nombre: string
-  contacto?: string
-  telefono?: string
-  email?: string
-  direccion?: string
-  cif?: string
-  notas?: string
-}) {
+  // Validaciones
+  try {
+    validateOrThrow(ProveedorSchema, { nombre, email, telefono, direccion, cif })
+  } catch (validationError: any) {
+    return { success: false, error: validationError.message || "Datos inválidos" }
+  }
+
   if (!shouldUseSupabase()) {
-    return { success: true, data: { id: Date.now().toString(), ...formData, activo: true } }
+    return { success: true, data: { id: Date.now().toString(), nombre, contacto, telefono, email, direccion, cif, notas, activo: true } }
   }
 
   const supabase = createServerClient()
@@ -95,9 +119,22 @@ export async function createProveedor(formData: {
   }
 
   try {
+    // Comprobar duplicados por CIF o email
+    if (cif) {
+      const { data: existenteCif, error: cifErr } = await supabase.from("proveedores").select("id").eq("cif", cif).maybeSingle()
+      if (cifErr) throw cifErr
+      if (existenteCif) return { success: false, error: "Ya existe un proveedor con ese CIF" }
+    }
+
+    if (email) {
+      const { data: existenteEmail, error: emailErr } = await supabase.from("proveedores").select("id").eq("email", email).maybeSingle()
+      if (emailErr) throw emailErr
+      if (existenteEmail) return { success: false, error: "Ya existe un proveedor con ese email" }
+    }
+
     const { data, error } = await supabase
       .from("proveedores")
-      .insert([{ ...formData, activo: true }])
+      .insert([{ nombre, contacto, telefono, email, direccion, cif, notas, activo: true }])
       .select()
       .single()
 
@@ -107,9 +144,9 @@ export async function createProveedor(formData: {
     return { success: true, data }
   } catch (error: any) {
     console.error("[v0] Error creando proveedor:", error)
-    if (error.code === "23505") {
-      return { success: false, error: "Ya existe un proveedor con ese nombre" }
+    if (error?.code === "23505") {
+      return { success: false, error: "Conflicto: proveedor duplicado" }
     }
-    return { success: false, error: "Error al crear proveedor" }
+    return { success: false, error: error?.message || "Error al crear proveedor" }
   }
 }
